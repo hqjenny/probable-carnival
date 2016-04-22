@@ -15,7 +15,7 @@ import org.apache.spark.sql.SQLContext._
 import scala.collection.JavaConversions._
 
 
-object Kmeans {
+object Kmeans{
 
   def main(args: Array[String]) {
 
