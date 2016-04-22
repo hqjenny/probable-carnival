@@ -32,7 +32,8 @@ object Kmeans{
     val membership = Array.ofDim[Int](numObjs(0))
 
     val clusters = cuda_kmeans(objects, numCoords(0), numObjs(0), numClusters, threshold, membership, loop_iterations)
-    filename = "/root/kmeans_spark/out.txt"
+
+    filename = "/root/probable-carnival/out.txt"
     write_file(filename, numClusters, numObjs(0), numCoords(0), clusters, membership)
 
   }
@@ -142,7 +143,7 @@ object Kmeans{
     }
     for (i <- 0 until numCoords) {
       for (j <- 0 until numClusters) {
-        dimClusters(get_index(i, j, numClusters)) = clusters(get_index(j, i, numCoords)) 
+        dimClusters(get_index(i, j, numClusters)) = dimObjects(get_index(i, j, numObjs)) 
       }
     }
     for (i <- 0 until numObjs) {
@@ -186,23 +187,37 @@ object Kmeans{
     do {
         cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
 
-        val kernelParameters = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership), Pointer.to(deviceIntermediates))
+        val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership), Pointer.to(deviceIntermediates))
 
         // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
-        cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters, null)
+        cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters1, null)
 
         JCuda.cudaDeviceSynchronize()
-        val e = JCuda.cudaGetLastError()
-        printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e));
+        var e = JCuda.cudaGetLastError()
+        if(e !=  cudaError.cudaSuccess) {
+          printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
+        }
+        //val t = Array(0)
+        //cuMemcpyDtoH(Pointer.to(t), deviceIntermediates, Sizeof.INT )
+        //cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
+        //printf("numReductionThreads %d", numReductionThreads)
+        //printf("imm %d\n", t(0))
+        //for (i <- 0 until numObjs) {
+        //  println(membership(i))
+        //}
 
         // (deviceIntermediates, numClusterBlocks, numReductionThreads);
-        val kernelParameters1 = Pointer.to(Pointer.to(deviceIntermediates), Pointer.to(Array(numClusterBlocks)), Pointer.to(Array(numReductionThreads)))
+        val kernelParameters2 = Pointer.to(Pointer.to(deviceIntermediates), Pointer.to(Array(numClusterBlocks)), Pointer.to(Array(numReductionThreads)))
 
         // compute_delta <<< 1, numReductionThreads, reductionBlockSharedDataSize >>>
-        cuLaunchKernel(function2, 1, 1, 1, numReductionThreads, 1, 1, reductionBlockSharedDataSize, null, kernelParameters1, null) 
+        cuLaunchKernel(function2, 1, 1, 1, numReductionThreads, 1, 1, reductionBlockSharedDataSize, null, kernelParameters2, null) 
 
         JCuda.cudaDeviceSynchronize()
-
+        e = JCuda.cudaGetLastError()
+        if(e !=  cudaError.cudaSuccess) {
+          printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
+        }
+ 
         val d = Array(0)
         cuMemcpyDtoH(Pointer.to(d), deviceIntermediates, Sizeof.INT )
         delta = d(0).toFloat
@@ -256,20 +271,28 @@ object Kmeans{
 
     var outFileName = filename + ".cluster_centres"
     printf("Writing coordinates of K=%d cluster centers to file \"%s\"\n", numClusters, outFileName)
+    var writer = new PrintWriter(new File(outFileName))
  
     for(i <- 0 until numClusters){
-      printf("%d ", i)
+      //printf("%d ", i)
+      writer.write(i + " ")
       for(j <- 0 until numCoords){
-        printf("%f ", clusters(get_index(i, j, numCoords)))
+        //printf("%f ", clusters(get_index(i, j, numCoords)))
+        writer.write(clusters(get_index(i, j, numCoords)) + " ")
       }
-      printf("\n")
+      //printf("\n")
+      writer.write("\n")
     }
+    writer.close()
 
     outFileName = filename + ".membership"
+    writer = new PrintWriter(new File(outFileName))
     printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs, outFileName)
     for(i <- 0 until numObjs){
-      printf("%d %d\n", i, membership(i))
+      //printf("%d %d\n", i, membership(i))
+      writer.write(i + " " + membership(i) + "\n" )
     }
+    writer.close()
     return 0 
   }
 
