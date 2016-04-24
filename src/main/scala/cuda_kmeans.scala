@@ -311,6 +311,131 @@ object Kmeans{
     return objects
   }
 
+  def cuda_predict (objects: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
+    JCudaDriver.setExceptionsEnabled(true)
+
+    val ptxFileName = preparePtxFile("cuda_kmeans.cu")
+    cuInit(0)
+
+    val device = new CUdevice()
+    cuDeviceGet(device, 0)
+
+    val context = new CUcontext()
+    cuCtxCreate(context, 0, device)
+
+    val module = new CUmodule()
+    cuModuleLoad(module, ptxFileName)
+
+    val function1 = new CUfunction()
+    cuModuleGetFunction(function1, module, "_Z7predictiiiPfS_PiS0_")
+
+    var i, j, index, loop = 0 
+    val newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
+    var delta = 0.0f
+    // [numCoords][numObjs] 
+    val dimObjects = Array.ofDim[Float](numCoords * numObjs)
+    // [numClusters][numCoords] 
+    val clusters= Array.ofDim[Float](numClusters * numCoords)
+    // [numCoords][numClusters]
+    val dimClusters = Array.ofDim[Float](numCoords * numClusters)
+    val newClusters = Array.fill(numCoords * numClusters){0.0f}
+
+    val deviceObjects = new CUdeviceptr()
+    val deviceClusters = new CUdeviceptr()
+    val deviceMembership = new CUdeviceptr()
+
+    /* initialize */
+    for (i <- 0 until numCoords) {
+      for (j <- 0 until numObjs) {
+        dimObjects(get_index(i, j, numObjs)) = objects(get_index(j, i, numCoords)) 
+      }
+    }
+
+    for (i <- 0 until numClusters) {
+      for (j <- 0 until numCoords) {
+        dimClusters(get_index(j, i, numClusters)) = clusters(get_index(i, j, numCoords))
+      }
+    }
+
+    for (i <- 0 until numObjs) {
+      membership(i) = -1
+    }
+    //  To support reduction, numThreadsPerClusterBlock *must* be a power of
+    //  two, and it *must* be no larger than the number of bits that will
+    //  fit into an unsigned char, the type used to keep track of membership
+    //  changes in the kernel.
+    val numThreadsPerClusterBlock = 128
+    val numClusterBlocks = (numObjs + numThreadsPerClusterBlock - 1) / numThreadsPerClusterBlock;
+
+    //#if BLOCK_SHARED_MEM_OPTIMIZATION
+    val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
+    
+    val deviceNum = Array(-1)
+    JCuda.cudaGetDevice(deviceNum)
+    val deviceProp = new cudaDeviceProp()
+    JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
+    if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
+      println("WARNING: Your CUDA hardware has insufficient block shared memory.")
+      println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
+      println("See the README for details.")
+    }
+
+    //#else
+    //const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
+    //#endif 
+
+    val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
+    val reductionBlockSharedDataSize = numReductionThreads * Sizeof.INT
+
+    cuMemAlloc(deviceObjects, numCoords * numObjs * Sizeof.FLOAT)
+    cuMemAlloc(deviceClusters, numCoords * numClusters * Sizeof.FLOAT)
+    cuMemAlloc(deviceMembership, numObjs * Sizeof.INT)
+
+    cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
+    cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)
+
+    cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
+
+    val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership))
+
+    // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
+    cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters1, null)
+
+    JCuda.cudaDeviceSynchronize()
+    var e = JCuda.cudaGetLastError()
+    if(e !=  cudaError.cudaSuccess) {
+      printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
+    }
+
+    cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
+  }
+
+  def predict(inputFile: String, clusterFile: String, outFile: String) {
+    val numObjs = Array(0) 
+    val numCoords = Array(0) 
+    val numClusters = Array(0)
+
+    val clusterNumCoords = Array(0)
+    
+    val objects = read_file(inputFile, numObjs, numCoords)
+    val centers = read_file(clusterFile, numClusters, clusterNumCoords)
+
+    assert(objects.length != 0)
+    assert (clusterNumCoords(0) == numCoords(0))
+
+    val membership = Array.ofDim[Int](numObjs(0))
+    cuda_predict(objects, numCoords(0), numObjs(0), numClusters(0), membership)
+
+    val outFileName = outFile + ".membership"
+    val writer = new PrintWriter(new File(outFileName))
+    printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs(0), outFileName)
+    for(i <- 0 until numObjs(0)){
+      //printf("%d %d\n", i, membership(i))
+      writer.write(i + " " + membership(i) + "\n" )
+    }
+    writer.close()
+  }
+
   private def toByteArray(inputStream: InputStream): Array[Byte] = {
     val baos = new ByteArrayOutputStream()
     val buffer = Array.ofDim[Byte](8192)
