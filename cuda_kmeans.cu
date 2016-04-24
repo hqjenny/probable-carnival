@@ -198,7 +198,7 @@ void predict(int numCoords,
              int numClusters,
              float *objects,           //  [numCoords][numObjs]
              float *deviceClusters,    //  [numCoords][numClusters]
-             int *membership,          //  [numObjs]
+             int *membership          //  [numObjs]
             )
 {
     //  The type chosen for membershipChanged must be large enough to support
