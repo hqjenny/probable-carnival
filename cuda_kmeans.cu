@@ -194,12 +194,12 @@ void compute_delta(int *deviceIntermediates,
 
 __global__ static
 void predict(int numCoords,
-                          int numObjs,
-                          int numClusters,
-                          float *objects,           //  [numCoords][numObjs]
-                          float *deviceClusters,    //  [numCoords][numClusters]
-                          int *membership,          //  [numObjs]
-                          int *intermediates)
+             int numObjs,
+             int numClusters,
+             float *objects,           //  [numCoords][numObjs]
+             float *deviceClusters,    //  [numCoords][numClusters]
+             int *membership,          //  [numObjs]
+            )
 {
     //  The type chosen for membershipChanged must be large enough to support
     //  reductions! There are blockDim.x elements, one for each thread in the
