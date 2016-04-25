@@ -19,10 +19,10 @@ object Kmeans{
 
   def main(args: Array[String]) {
 
-    /*val conf = new SparkConf().setAppName("dataframe kmeans gpu")
+    val conf = new SparkConf().setAppName("dataframe kmeans gpu")
     val sc = new SparkContext(conf)
     val sqlContext= new SQLContext(sc)
-    import sqlContext.implicits._ */
+    import sqlContext.implicits._ 
 
     if (args.length < 4) {
       System.err.println("Usage: " + this.getClass.getSimpleName +
@@ -58,12 +58,14 @@ object Kmeans{
       
       val timestamp0: Long = System.currentTimeMillis 
       
-      val objects = read_file(input_file, numObjs, numCoords)
-      /*val objects_array = read_file(input_file, numObjs, numCoords)
+      //val objects = read_file(input_file, numObjs, numCoords)
+      
+      val objects_array = read_file_str(input_file, numObjs, numCoords)
+      //val objects_array = objects_array_fl.map(_.toString)
       val objects_par = sc.parallelize(objects_array)
       val objects_DF = objects_par.toDF
       val objects_str = objects_DF.collect()
-      val objects = objects_str.map(_.toFloat)*/
+      val objects = objects_str.map(_.getString(0).toFloat)
 
       assert(objects.length != 0)
       val membership = Array.ofDim[Int](numObjs(0))
@@ -366,6 +368,22 @@ object Kmeans{
     val objects = lines.flatMap(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
     return objects
   }
+
+  def read_file_str (filename: String, numObjs: Array[Int], numCoords: Array[Int]): Array[String] = {
+
+    // [numClusters][numCoords] 
+    val source = scala.io.Source.fromFile(filename)
+    //val source = scala.io.Source.fromFile("/Users/qijing.huang/Documents/CS267Project/kmeans/Image_data/color100.txt")
+    val lines = (try source.mkString finally source.close()).split('\n').map(x => x.trim)
+    numObjs(0) = lines.length
+    val cols = lines(0).split(' ')
+
+    numCoords(0) = cols.length - 1
+
+    val objects = lines.flatMap(x => x.split(' ').slice(1, x.length).map(x => x.trim))
+    return objects
+  }
+
 
   def cuda_predict (objects: Array[Float], clusters: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
     JCudaDriver.setExceptionsEnabled(true)
