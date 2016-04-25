@@ -19,6 +19,11 @@ object Kmeans{
 
   def main(args: Array[String]) {
 
+    /*val conf = new SparkConf().setAppName("dataframe kmeans gpu")
+    val sc = new SparkContext(conf)
+    val sqlContext= new SQLContext(sc)
+    import sqlContext.implicits._ */
+
     if (args.length < 4) {
       System.err.println("Usage: " + this.getClass.getSimpleName +
         "train <input_file> <output_file> <numClusters> <threshold> <iteration>")
@@ -52,7 +57,13 @@ object Kmeans{
       //val loop_iterations = Array(0) 
       
       val timestamp0: Long = System.currentTimeMillis 
+      
       val objects = read_file(input_file, numObjs, numCoords)
+      /*val objects_array = read_file(input_file, numObjs, numCoords)
+      val objects_par = sc.parallelize(objects_array)
+      val objects_DF = objects_par.toDF
+      val objects_str = objects_DF.collect()
+      val objects = objects_str.map(_.toFloat)*/
 
       assert(objects.length != 0)
       val membership = Array.ofDim[Int](numObjs(0))
@@ -468,7 +479,7 @@ object Kmeans{
     println("Num coords: " + numCoords(0))
     assert(objects.length != 0)
     assert (clusterNumCoords(0) == numCoords(0))
-
+    println(centers.slice(0,numCoords(0)) mkString " ")
     val membership = Array.ofDim[Int](numObjs(0))
     cuda_predict(objects, centers, numCoords(0), numObjs(0), numClusters(0), membership)
 
