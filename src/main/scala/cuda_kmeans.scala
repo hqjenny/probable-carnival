@@ -19,22 +19,60 @@ object Kmeans{
 
   def main(args: Array[String]) {
 
-    var filename = "/root/kmeans/Image_data/color100.txt"
-    val numObjs = Array(0) 
-    val numCoords = Array(0) 
-    val numClusters = 7
-    val threshold = 0.001f
-    val loop_iterations = Array(0) 
-    
-    val objects = read_file(filename, numObjs, numCoords)
-    assert(objects.length != 0)
+    if (args.length < 4) {
+      System.err.println("Usage: " + this.getClass.getSimpleName +
+        "train <input_file> <output_file> <numClusters> <threshold> <iteration>")
+      System.err.println("Usage: " + this.getClass.getSimpleName +
+        "predict <input_file> <cluster_file> <output_file>")
+      System.exit(1)
+    }
 
-    val membership = Array.ofDim[Int](numObjs(0))
+    val m = args(0)
+    if (m == "predict") {
 
-    val clusters = cuda_kmeans(objects, numCoords(0), numObjs(0), numClusters, threshold, membership, loop_iterations)
+      val Array( mode, input_file, cluster_file, output_file) = args
+      val timestamp0: Long = System.currentTimeMillis 
+      predict(input_file, cluster_file, output_file)
+      val timestamp1: Long = System.currentTimeMillis 
 
-    filename = "/root/probable-carnival/out.txt"
-    write_file(filename, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      val predict_time = (timestamp1 - timestamp0)
+      println("predict: " + predict_time + "ms")
+
+    } else {
+
+      val Array( mode, input_file, output_file, numClusters_str, threshold_str, iteration_str) = args
+      //def predict(inputFile: String, clusterFile: String, outFile: String) {
+      //var filename = "/root/kmeans/Image_data/color100.txt"
+      // Number obtained from the input file 
+      val numObjs = Array(0) 
+      val numCoords = Array(0) 
+      val numClusters = numClusters_str.toInt
+      val threshold = threshold_str.toFloat
+      val iterations = iteration_str.toInt
+      //val loop_iterations = Array(0) 
+      
+      val timestamp0: Long = System.currentTimeMillis 
+      val objects = read_file(input_file, numObjs, numCoords)
+
+      assert(objects.length != 0)
+      val membership = Array.ofDim[Int](numObjs(0))
+
+      val timestamp1: Long = System.currentTimeMillis 
+      val clusters = cuda_kmeans(objects, numCoords(0), numObjs(0), numClusters, threshold, membership, iterations)
+
+      val timestamp2: Long = System.currentTimeMillis 
+
+      write_file(output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      val timestamp3: Long = System.currentTimeMillis 
+
+      val read_file_time = (timestamp1 - timestamp0)
+      val cuda_kmeans_time  = (timestamp2 - timestamp1)
+      val write_file_time  = (timestamp3 - timestamp2)
+
+      println("read_file: " + read_file_time + "ms")
+      println("cuda_kmeans_time: " + cuda_kmeans_time + "ms")
+      println("write_file_time: " + write_file_time + "ms")
+    }
 
   }
 
@@ -96,7 +134,7 @@ object Kmeans{
 
   // out: [numClusters][numCoords]
   // objects: [numObjs][numCoords]
-  def cuda_kmeans(objects: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Array[Int]): Array[Float] = {
+  def cuda_kmeans(objects: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int): Array[Float] = {
     JCudaDriver.setExceptionsEnabled(true)
 
     val ptxFileName = preparePtxFile("cuda_kmeans.cu")
@@ -184,6 +222,7 @@ object Kmeans{
     cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
     cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)
 
+    val timestamp1: Long = System.currentTimeMillis 
     do {
         cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
 
@@ -249,9 +288,15 @@ object Kmeans{
 
         delta = delta / numObjs
         loop += 1
-      } while (delta > threshold && loop < 500)
-    
-    loop_iterations(0) = loop
+      } while (delta > threshold && loop < loop_iterations)
+
+    val timestamp2: Long = System.currentTimeMillis 
+    val train_time  = (timestamp2 - timestamp1)
+    println("Within cuda_kmeans")
+
+    println("\tloop_iterations: " + loop )
+    println("\tdelta: " + delta )
+    println("\ttrain: " + train_time + "ms" )
 
     for (i <- 0 until numClusters) {
       for (j <- 0 until numCoords) {
@@ -327,7 +372,7 @@ object Kmeans{
     cuModuleLoad(module, ptxFileName)
 
     val function1 = new CUfunction()
-    cuModuleGetFunction(function1, module, "_Z7predictiiiPfS_PiS0_")
+    cuModuleGetFunction(function1, module, "_Z7predictiiiPfS_Pi")
 
     var i, j, index, loop = 0 
     val newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
@@ -419,7 +464,8 @@ object Kmeans{
     
     val objects = read_file(inputFile, numObjs, numCoords)
     val centers = read_file(clusterFile, numClusters, clusterNumCoords)
-
+    println("Num clusters: " + numClusters(0))
+    println("Num coords: " + numCoords(0))
     assert(objects.length != 0)
     assert (clusterNumCoords(0) == numCoords(0))
 
