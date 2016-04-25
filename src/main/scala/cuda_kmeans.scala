@@ -311,7 +311,7 @@ object Kmeans{
     return objects
   }
 
-  def cuda_predict (objects: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
+  def cuda_predict (objects: Array[Float], clusters: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
     JCudaDriver.setExceptionsEnabled(true)
 
     val ptxFileName = preparePtxFile("cuda_kmeans.cu")
@@ -335,7 +335,7 @@ object Kmeans{
     // [numCoords][numObjs] 
     val dimObjects = Array.ofDim[Float](numCoords * numObjs)
     // [numClusters][numCoords] 
-    val clusters= Array.ofDim[Float](numClusters * numCoords)
+
     // [numCoords][numClusters]
     val dimClusters = Array.ofDim[Float](numCoords * numClusters)
     val newClusters = Array.fill(numCoords * numClusters){0.0f}
@@ -424,7 +424,7 @@ object Kmeans{
     assert (clusterNumCoords(0) == numCoords(0))
 
     val membership = Array.ofDim[Int](numObjs(0))
-    cuda_predict(objects, numCoords(0), numObjs(0), numClusters(0), membership)
+    cuda_predict(objects, centers, numCoords(0), numObjs(0), numClusters(0), membership)
 
     val outFileName = outFile + ".membership"
     val writer = new PrintWriter(new File(outFileName))
