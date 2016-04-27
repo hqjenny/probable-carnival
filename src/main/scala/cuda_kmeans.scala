@@ -4,6 +4,7 @@ import jcuda._
 import jcuda.driver._
 import jcuda.runtime._
 
+import org.apache.spark.SparkFiles
 import org.apache.spark.SparkContext
 import org.apache.spark.SparkContext._
 import org.apache.spark.SparkConf
@@ -22,6 +23,7 @@ object Kmeans{
     val conf = new SparkConf().setAppName("dataframe kmeans gpu")
     val sc = new SparkContext(conf)
     val sqlContext= new SQLContext(sc)
+
     import sqlContext.implicits._ 
 
     if (args.length < 4) {
@@ -45,33 +47,35 @@ object Kmeans{
 
     } else {
 
-      val Array( mode, input_file, output_file, numClusters_str, threshold_str, iteration_str) = args
-      //def predict(inputFile: String, clusterFile: String, outFile: String) {
-      //var filename = "/root/kmeans/Image_data/color100.txt"
+      val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
+
       // Number obtained from the input file 
       val numObjs = Array(0) 
       val numCoords = Array(0) 
       val numClusters = numClusters_str.toInt
       val threshold = threshold_str.toFloat
-      val iterations = iteration_str.toInt
-      //val loop_iterations = Array(0) 
-      
-      val timestamp0: Long = System.currentTimeMillis 
-      
-      //val objects = read_file(input_file, numObjs, numCoords)
-      
-      val objects_array = read_file_str(input_file, numObjs, numCoords)
-      //val objects_array = objects_array_fl.map(_.toString)
-      val objects_par = sc.parallelize(objects_array)
-      val objects_DF = objects_par.toDF
-      val objects_str = objects_DF.collect()
-      val objects = objects_str.map(_.getString(0).toFloat)
+      val iterations = iterations_str.toInt
 
+      // Add the file to the slave 
+      sc.addFile("cuda_kmeans.ptx")
+
+      // Read input file on master
+      val timestamp0: Long = System.currentTimeMillis  
+      val objects = read_file(input_file, numObjs, numCoords)
       assert(objects.length != 0)
-      val membership = Array.ofDim[Int](numObjs(0))
+      val objects_RDD = sc.parallelize(objects).coalesce(1) // run on 1 partition. RDD[(Float,String)]
 
       val timestamp1: Long = System.currentTimeMillis 
-      val clusters = cuda_kmeans(objects, numCoords(0), numObjs(0), numClusters, threshold, membership, iterations)
+      
+      // Process it in parallel
+      val model_RDD = objects_RDD.mapPartitions(x => mapPartitions_func(x, numCoords(0), numClusters, threshold, iterations)) //map()  // mapPartitions(Iterator[T]) 
+      val model_arr = model_RDD.collect()  // Array of Models
+      val model_any0 = model_arr(0) // Return from the 1 st element
+      val model_any1 = model_arr(1) 
+      val clusters= model_any0.asInstanceOf[Array[Float]]
+      val membership = model_any1.asInstanceOf[Array[Int]]
+
+      //val clusters = cuda_kmeans(objects, numCoords(0), numObjs(0), numClusters, threshold, membership, iterations)
 
       val timestamp2: Long = System.currentTimeMillis 
 
@@ -85,6 +89,7 @@ object Kmeans{
       println("read_file: " + read_file_time + "ms")
       println("cuda_kmeans_time: " + cuda_kmeans_time + "ms")
       println("write_file_time: " + write_file_time + "ms")
+      
     }
 
   }
@@ -129,6 +134,30 @@ object Kmeans{
     ptxFileName
   }
 
+  def mapPartitions_func_test(t: Iterator[Float]): Iterator[Any]  = {
+    var numObjs = 0
+     while(t.hasNext) {
+      numObjs += 1
+      t.next()
+    }
+    return Iterator(numObjs)
+  }
+
+  def mapPartitions_func(t: Iterator[Float], numCoords: Int,  numClusters: Int, threshold: Float, iterations: Int): Iterator[Any] = {
+    val objects = t.toArray
+    val numObjs = objects.length / numCoords
+    println(numObjs)
+    println(numCoords)
+
+    val membership = Array.ofDim[Int](numObjs)
+    val clusters = cuda_kmeans(objects, numCoords, numObjs, numClusters, threshold, membership, iterations)
+    return (clusters, membership).productIterator 
+  }
+
+  def mapped_func(t: Float): Float = {
+   return t  
+  }
+
   def get_index(y: Int, x: Int, width: Int): Int = {
     return x + y * width
   }
@@ -150,7 +179,8 @@ object Kmeans{
   def cuda_kmeans(objects: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int): Array[Float] = {
     JCudaDriver.setExceptionsEnabled(true)
 
-    val ptxFileName = preparePtxFile("cuda_kmeans.cu")
+    val ptxFileName = SparkFiles.get("cuda_kmeans.ptx")
+    //val ptxFileName = preparePtxFile("cuda_kmeans.cu")
     cuInit(0)
 
     val device = new CUdevice()
@@ -380,7 +410,12 @@ object Kmeans{
 
     numCoords(0) = cols.length - 1
 
-    val objects = lines.flatMap(x => x.split(' ').slice(1, x.length).map(x => x.trim))
+    //val objects = lines.flatMap(x => x.split(' ').slice(1, x.length).map(x => x.trim))
+    val objects_list = lines.flatMap(x => x.split(' ').slice(1, x.length))
+    var objects : Array[String] = Array()
+    for(i <- 0 until objects_list.length){
+      objects = objects :+ objects_list(i).trim
+    }
     return objects
   }
 
