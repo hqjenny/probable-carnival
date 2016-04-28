@@ -530,16 +530,21 @@ object Kmeans{
     val centers = read_file(clusterFile, numClusters, clusterNumCoords)
     println("Num clusters: " + numClusters(0))
     println("Num coords: " + numCoords(0))
-    assert(objects.length != 0)
     assert (clusterNumCoords(0) == numCoords(0))
-    println(centers.slice(0,numCoords(0)) mkString " ")
-    val membership = Array.ofDim[Int](numObjs(0))
-    cuda_predict(objects, centers, numCoords(0), numObjs(0), numClusters(0), membership)
+
+    predict(objects, centers, numObjs(0), numClusters(0), numCoords(0), outFile)
+  }
+
+  // objects and center arrays do not contain the indices.
+  def predict(objects:Array[Float], centers:Array[Float], numObjs: Int, numClusters: Int, numFeatures:Int, outFile: String) {
+    assert(objects.length != 0)
+    val membership = Array.ofDim[Int](numObjs)
+    cuda_predict(objects, centers, numFeatures, numObjs, numClusters, membership)
 
     val outFileName = outFile + ".membership"
     val writer = new PrintWriter(new File(outFileName))
-    printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs(0), outFileName)
-    for(i <- 0 until numObjs(0)){
+    printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs, outFileName)
+    for(i <- 0 until numObjs) {
       //printf("%d %d\n", i, membership(i))
       writer.write(i + " " + membership(i) + "\n" )
     }
