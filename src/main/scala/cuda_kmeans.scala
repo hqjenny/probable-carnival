@@ -46,8 +46,37 @@ object Kmeans{
       val predict_time = (timestamp1 - timestamp0)
       println("predict: " + predict_time + "ms")
 
-    } else {
+    } else if (m == "par_train") {
+      val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
+      val numObjs = Array(0) 
+      val numCoords = Array(0) 
+      val numClusters = numClusters_str.toInt
+      val threshold = threshold_str.toFloat
+      val iterations = iterations_str.toInt
+      // Add the file to the slave 
+      sc.addFile("cuda_kmeans.ptx")
 
+      // Read input file on master
+      val timestamp0: Long = System.currentTimeMillis  
+      val objects = read_file_2D(input_file, numObjs, numCoords)
+      val timestamp1: Long = System.currentTimeMillis 
+      
+      val ret = Training.cuda_kmeans_master(sc, objects, numCoords(0), numObjs(0), numClusters, threshold, iterations)
+      val clusters = ret._1
+      val membership = ret._2
+      //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): Array[Float] = { 
+      val timestamp2: Long = System.currentTimeMillis 
+      write_file(output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      val timestamp3: Long = System.currentTimeMillis 
+
+      val read_file_time = (timestamp1 - timestamp0)
+      val cuda_kmeans_time  = (timestamp2 - timestamp1)
+      val write_file_time  = (timestamp3 - timestamp2)
+
+      println("read_file: " + read_file_time + "ms")
+      println("cuda_kmeans_time: " + cuda_kmeans_time + "ms")
+      println("write_file_time: " + write_file_time + "ms") 
+    } else {
       val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
 
       // Number obtained from the input file 
@@ -63,11 +92,10 @@ object Kmeans{
       // Read input file on master
       val timestamp0: Long = System.currentTimeMillis  
       val objects = read_file(input_file, numObjs, numCoords)
-      assert(objects.length != 0)
-      val objects_RDD = sc.parallelize(objects).coalesce(1) // run on 1 partition. RDD[(Float,String)]
-
+      //assert(objects.length != 0)
       val timestamp1: Long = System.currentTimeMillis 
       
+      val objects_RDD = sc.parallelize(objects).coalesce(1) // run on 1 partition. RDD[(Float,String)]
       // Process it in parallel
       val model_RDD = objects_RDD.mapPartitions(x => mapPartitions_func(x, numCoords(0), numClusters, threshold, iterations)) //map()  // mapPartitions(Iterator[T]) 
       val model_arr = model_RDD.collect()  // Array of Models

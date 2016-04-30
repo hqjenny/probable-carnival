@@ -17,28 +17,14 @@ import jcuda.driver._
 import jcuda.runtime._
 
 object Training{
-  def print () = {
-    println("Testing")        
-  }
 
-  def mapPartitions_func(t: Iterator[Float], numCoords: Int,  numClusters: Int, threshold: Float, iterations: Int): Iterator[Any] = {
-    val objects = t.toArray
-    val numObjs = objects.length / numCoords
-    println(numObjs)
-    println(numCoords)
-
-    val membership = Array.ofDim[Int](numObjs)
-    val clusters = Kmeans.cuda_kmeans(objects, numCoords, numObjs, numClusters, threshold, membership, iterations)
-    return (clusters, membership).productIterator 
-  }
-
-
-  def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): Array[Float] = {
+  def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int]) = {
     var i, j, index, loop = 0 
     var newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
     var delta = 0.0f
     // [numCoords][numObjs] 
-    val dimObjects = Array.ofDim[Float](numCoords * numObjs)
+    //val dimObjects = Array.ofDim[Float](numCoords, numObjs)
+    //val dimObjects = Array.ofDim[Float](numCoords * numObjs)
     // [numClusters][numCoords] 
     val clusters= Array.ofDim[Float](numClusters * numCoords)
     // [numCoords][numClusters]
@@ -47,104 +33,38 @@ object Training{
     var membership = Array.fill(numObjs){-1}
 
     /* initialize */
-    for (i <- 0 until numCoords) {
+    /*for (i <- 0 until numCoords) {
       for (j <- 0 until numObjs) {
         //dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
-        dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(j)(i) 
+        dimObjects(i)(j) = objects(j)(i) 
       }
-    }
+    }*/
     for (i <- 0 until numCoords) {
       for (j <- 0 until numClusters) {
-        dimClusters(Kmeans.get_index(i, j, numClusters)) = dimObjects(Kmeans.get_index(i, j, numObjs)) 
+        //dimClusters(Kmeans.get_index(i, j, numClusters)) = dimObjects(Kmeans.get_index(i, j, numObjs)) 
+        dimClusters(Kmeans.get_index(i, j, numClusters)) = objects(j)(i)
       }
     }
 
-    val objects_RDD = sc.parallelize(objects).coalesce(1) // run on 1 partition. RDD[(Float,String)]
+    // It will be nice if it can run on transpose rdd but the membership info will be incorrect
+    //val objects_RDD = sc.parallelize(dimObjects) // run on 1 partition. RDD[(Float,String)]
+    val objects_RDD = sc.parallelize(objects).coalesce(2) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
+
+    println("partition_index:")
+    partition_index.map(x=> {println(x)})
+    println()
     
-
-    //  To support reduction, numThreadsPerClusterBlock *must* be a power of
-    //  two, and it *must* be no larger than the number of bits that will
-    //  fit into an unsigned char, the type used to keep track of membership
-    //  changes in the kernel.
-    //val numThreadsPerClusterBlock = 128
-    //val numClusterBlocks = (numObjs + numThreadsPerClusterBlock - 1) / numThreadsPerClusterBlock;
-
-    //#if BLOCK_SHARED_MEM_OPTIMIZATION
-    /*val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
-    
-    val deviceNum = Array(-1)
-    JCuda.cudaGetDevice(deviceNum)
-    val deviceProp = new cudaDeviceProp()
-    JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
-    if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
-      println("WARNING: Your CUDA hardware has insufficient block shared memory.")
-      println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
-      println("See the README for details.")
-    }*/
-
-    //#else
-    //const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
-    //#endif 
-
-    //val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
-    //val reductionBlockSharedDataSize = numReductionThreads * Sizeof.INT
-
-    /*cuMemAlloc(deviceObjects, numCoords * numObjs * Sizeof.FLOAT)
-    cuMemAlloc(deviceClusters, numCoords * numClusters * Sizeof.FLOAT)
-    cuMemAlloc(deviceMembership, numObjs * Sizeof.INT)
-    cuMemAlloc(deviceIntermediates, numReductionThreads * Sizeof.INT) // unsigned data type
-
-    cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
-    cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)*/
-
     val timestamp1: Long = System.currentTimeMillis 
     do {
-        //cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
-
-        //val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership), Pointer.to(deviceIntermediates))
-
-        /* <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
-        cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters1, null)
-
-        JCuda.cudaDeviceSynchronize()
-        var e = JCuda.cudaGetLastError()
-        if(e !=  cudaError.cudaSuccess) {
-          printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
-        }
-
-        // (deviceIntermediates, numClusterBlocks, numReductionThreads);
-        val kernelParameters2 = Pointer.to(Pointer.to(deviceIntermediates), Pointer.to(Array(numClusterBlocks)), Pointer.to(Array(numReductionThreads)))
-
-        // compute_delta <<< 1, numReductionThreads, reductionBlockSharedDataSize >>>
-        cuLaunchKernel(function2, 1, 1, 1, numReductionThreads, 1, 1, reductionBlockSharedDataSize, null, kernelParameters2, null) 
-
-        JCuda.cudaDeviceSynchronize()
-        e = JCuda.cudaGetLastError()
-        if(e !=  cudaError.cudaSuccess) {
-          printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
-        }
- 
-        val d = Array(0)
-        cuMemcpyDtoH(Pointer.to(d), deviceIntermediates, Sizeof.INT )
-        delta = d(0).toFloat
-        cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
-
-        for (i <- 0 until numObjs) {
-          var index = membership(i)
-          newClusterSize(index) += 1;
-          for (j <- 0 until numCoords){
-            //printf("i %d j %d index %d", i, j, index)
-            //printf("newCluster %d idx %d", newClusters.length, Kmeans.get_index(j, index, numClusters))
-            //printf("objects %d idx %d\n", objects.length, Kmeans.get_index(j, index, numObjs))
-            newClusters(Kmeans.get_index(j, index, numClusters)) += objects(Kmeans.get_index(i, j, numCoords))
-        gtg  }
-        }*/
-        
-      val model_RDD = objects_RDD.mapPartitionsWithIndex((i, t) => cuda_kmeans_slaves(t, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations)) //map()  // mapPartitions(Iterator[T]) 
+      println("loop_iterations: " + loop )
+      println("membership length "+membership.length + " numObjs " + numObjs)
+      val model_RDD = objects_RDD.mapPartitionsWithIndex((i, t) => { 
+          println("i " + i +  " start " + partition_index(i) +" end " + partition_index(i+1) + " memlength " + membership.slice(partition_index(i), partition_index(i+1)).length + " memtotallength " + membership.length ); 
+        cuda_kmeans_slaves(t, dimClusters, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations)}) //map()  // mapPartitions(Iterator[T]) 
       val model_arr = model_RDD.collect()  // Array of Models
       
          // Reset all the values
@@ -153,28 +73,24 @@ object Training{
       newClusterSize.map(_=>0)
       membership = Array()
 
-      //val membership: Array[Int]= _
-      
       for (i <- 0 until model_arr.length){
         if (i % 4 == 0) {
           val newClusters_part = model_arr(i).asInstanceOf[Array[Float]]
           newClusters = (newClusters_part, newClusters).zipped.map(_+_)
-        }else if (i % 4 == 2){
+        }else if (i % 4 == 1){
           val newClusterSize_part = model_arr(i).asInstanceOf[Array[Int]]
+          println("model " + i + " clustersize " + newClusterSize_part.length)
           newClusterSize = (newClusterSize_part, newClusterSize).zipped.map(_+_) 
-        }else if (i % 4 == 3){
-          delta += model_arr(i).asInstanceOf[Float]
-        }else{
+        }else if (i % 4 == 2){
           // JENNY need to think a way to pass it 
           membership = membership ++ model_arr(i).asInstanceOf[Array[Int]]
-        }
+          println("model " + i + " membership ")
+          membership.map(x=>print(" " + x + " "))
+          println()
+        }else{
+          delta += model_arr(i).asInstanceOf[Float]
+       }
       }
-      
-      // flatten? reduce((x,y) => (),fd() )
-      //val model_any0 = model_arr(0) // Return from the 1 st element
-      //val model_any1 = model_arr(1) 
-      //val clusters= model_any0.asInstanceOf[Array[Float]]
-      //val membership = model_any1.asInstanceOf[Array[Int]]
 
         //  TODO: Change layout of newClusters to [numClusters][numCoords]
         /* average the sum and replace old cluster centers with newClusters */
@@ -194,7 +110,6 @@ object Training{
 
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
-    println("Within cuda_kmeans")
 
     println("\tloop_iterations: " + loop )
     println("\tdelta: " + delta )
@@ -205,14 +120,13 @@ object Training{
               clusters(Kmeans.get_index(i, j, numCoords)) = dimClusters(Kmeans.get_index(j, i, numClusters))
       }
     }
-    clusters
+    return (clusters, membership)
   }
-
- 
 
   // out: [numClusters][numCoords]
   // objects: [numObjs][numCoords]
-  def cuda_kmeans_slaves(t: Iterator[Array[Float]], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
+  def cuda_kmeans_slaves(t: Iterator[Array[Float]], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
+    println("Slave Run %d", membership.length)
     // JENNY: should change the objects to 2D array and pass 1 pointers but they won't be continous; later  
     val objects_arr = t.toArray
     val numObjs = objects_arr.length
@@ -234,15 +148,15 @@ object Training{
     //cuModuleGetFunction(function2, module, "compute_delta")
     cuModuleGetFunction(function2, module, "_Z13compute_deltaPiii")
 
-    var i, j, index, loop = 0 
+    var i, j, loop = 0 
     val newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
     var delta = 0.0f
     // [numCoords][numObjs] 
     val dimObjects = Array.ofDim[Float](numCoords * numObjs)
     // [numClusters][numCoords] 
-    val clusters= Array.ofDim[Float](numClusters * numCoords)
+    //val clusters= Array.ofDim[Float](numClusters * numCoords)
     // [numCoords][numClusters]
-    val dimClusters = Array.ofDim[Float](numCoords * numClusters)
+    //val dimClusters = Array.ofDim[Float](numCoords * numClusters)
     val newClusters = Array.fill(numCoords * numClusters){0.0f}
 
     val deviceObjects = new CUdeviceptr()
@@ -251,19 +165,12 @@ object Training{
     val deviceIntermediates = new CUdeviceptr()
 
     /* initialize */
-    /*for (i <- 0 until numCoords) {
+    for (i <- 0 until numCoords) {
       for (j <- 0 until numObjs) {
         dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
       }
     }
-    for (i <- 0 until numCoords) {
-      for (j <- 0 until numClusters) {
-        dimClusters(Kmeans.get_index(i, j, numClusters)) = dimObjects(Kmeans.get_index(i, j, numObjs)) 
-      }
-    }
-    for (i <- 0 until numObjs) {
-      membership(i) = -1
-    }*/
+
     //  To support reduction, numThreadsPerClusterBlock *must* be a power of
     //  two, and it *must* be no larger than the number of bits that will
     //  fit into an unsigned char, the type used to keep track of membership
@@ -331,7 +238,7 @@ object Training{
         cuMemcpyDtoH(Pointer.to(d), deviceIntermediates, Sizeof.INT )
         delta = d(0).toFloat
         cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
-
+        println("membership size " + membership.length + "numObjs " + numObjs)
         for (i <- 0 until numObjs) {
           var index = membership(i)
           newClusterSize(index) += 1;
@@ -339,10 +246,11 @@ object Training{
             //printf("i %d j %d index %d", i, j, index)
             //printf("newCluster %d idx %d", newClusters.length, Kmeans.get_index(j, index, numClusters))
             //printf("objects %d idx %d\n", objects.length, Kmeans.get_index(j, index, numObjs))
-            newClusters(Kmeans.get_index(j, index, numClusters)) += objects(Kmeans.get_index(i, j, numCoords))
+            //newClusters(Kmeans.get_index(j, index, numClusters)) += objects(Kmeans.get_index(i, j, numCoords))
+            newClusters(Kmeans.get_index(j, index, numClusters)) += dimObjects(Kmeans.get_index(j, i, numObjs))
           }
         }
-        //  TODO: Change layout of newClusters to [numClusters][numCoords]
+        // Uncomment this to allow mulitple iterations on GPU 
         /* average the sum and replace old cluster centers with newClusters */
         /*for (i <- 0 until numClusters) {
           for (j <- 0 until numCoords) {
@@ -352,26 +260,19 @@ object Training{
             newClusters(Kmeans.get_index(j, i, numClusters)) = 0.0f 
           }
           newClusterSize(i) = 0
-        }*/
-    /*
+        }
+    
         delta = delta / numObjs
         loop += 1
       } while (delta > threshold && loop < loop_iterations)
-    */
+      */ 
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
-    println("Within cuda_kmeans")
+    println("Within cuda_kmeans jobs")
 
     //println("\tloop_iterations: " + loop )
-    //println("\tdelta: " + delta )
-    //println("\ttrain: " + train_time + "ms" )
-
-    /*for (i <- 0 until numClusters) {
-      for (j <- 0 until numCoords) {
-              clusters(Kmeans.get_index(i, j, numCoords)) = dimClusters(Kmeans.get_index(j, i, numClusters))
-      }
-    }*/
-
+    println("\t\tdelta: " + delta )
+    println("\t\ttrain: " + train_time + "ms" )
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
