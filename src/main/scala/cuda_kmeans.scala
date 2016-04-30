@@ -517,6 +517,10 @@ object Kmeans{
     }
 
     cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
+
+    cuMemFree(deviceObjects)
+    cuMemFree(deviceClusters)
+    cuMemFree(deviceMembership)
   }
 
   def predict(inputFile: String, clusterFile: String, outFile: String) {
