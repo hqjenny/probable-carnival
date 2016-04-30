@@ -1,3 +1,4 @@
+package kmeans
 import jcuda.driver.JCudaDriver._
 import java.io._
 import jcuda._
@@ -316,7 +317,6 @@ object Kmeans{
           }
         }
         
-        //  TODO: Flip the nesting order
         //  TODO: Change layout of newClusters to [numClusters][numCoords]
         /* average the sum and replace old cluster centers with newClusters */
         for (i <- 0 until numClusters) {
@@ -399,7 +399,7 @@ object Kmeans{
     return objects
   }
 
-  def read_file_str (filename: String, numObjs: Array[Int], numCoords: Array[Int]): Array[String] = {
+  def read_file_2D (filename: String, numObjs: Array[Int], numCoords: Array[Int]): Array[Array[Float]] = {
 
     // [numClusters][numCoords] 
     val source = scala.io.Source.fromFile(filename)
@@ -410,12 +410,7 @@ object Kmeans{
 
     numCoords(0) = cols.length - 1
 
-    //val objects = lines.flatMap(x => x.split(' ').slice(1, x.length).map(x => x.trim))
-    val objects_list = lines.flatMap(x => x.split(' ').slice(1, x.length))
-    var objects : Array[String] = Array()
-    for(i <- 0 until objects_list.length){
-      objects = objects :+ objects_list(i).trim
-    }
+    val objects = lines.map(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
     return objects
   }
 
@@ -423,8 +418,10 @@ object Kmeans{
   def cuda_predict (objects: Array[Float], clusters: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
     JCudaDriver.setExceptionsEnabled(true)
 
-    val ptxFileName = preparePtxFile("cuda_kmeans.cu")
-    cuInit(0)
+    //val ptxFileName = preparePtxFile("cuda_kmeans.cu")
+   val ptxFileName = SparkFiles.get("cuda_kmeans.ptx") 
+    println(ptxFileName) 
+   cuInit(0)
 
     val device = new CUdevice()
     cuDeviceGet(device, 0)
@@ -517,7 +514,6 @@ object Kmeans{
     }
 
     cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
-
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
