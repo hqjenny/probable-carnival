@@ -48,7 +48,7 @@ object Training{
 
     // It will be nice if it can run on transpose rdd but the membership info will be incorrect
     //val objects_RDD = sc.parallelize(dimObjects) // run on 1 partition. RDD[(Float,String)]
-    val objects_RDD = sc.parallelize(objects).coalesce(2) // run on 1 partition. RDD[(Float,String)]
+    val objects_RDD = sc.parallelize(objects) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
     // Get a accumulative sum
@@ -107,6 +107,7 @@ object Training{
         delta = delta / numObjs
         loop += 1
       } while (delta > threshold && loop < loop_iterations)
+      //} while (loop < loop_iterations)
 
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
@@ -277,6 +278,8 @@ object Training{
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
     cuMemFree(deviceIntermediates)
+
+    cuCtxDestroy(context)
     
     return (newClusters, newClusterSize, membership, delta).productIterator 
   }
