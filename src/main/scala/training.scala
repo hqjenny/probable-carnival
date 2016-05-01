@@ -65,18 +65,18 @@ object Training{
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
 
-    println("partition_index:")
-    partition_index.map(x=> {println(x)})
-    println()
+    // println("partition_index:")
+    // partition_index.map(x=> {println(x)})
+    // println()
     
     val timestamp1: Long = System.currentTimeMillis 
     do {
       println("loop_iterations: " + loop )
-      println("membership length "+membership.length + " numObjs " + numObjs)
+      // println("membership length "+membership.length + " numObjs " + numObjs)
 
       val model_RDD = lines.mapPartitionsWithIndex((i, t) => { 
       //val model_RDD = objects_RDD.mapPartitionsWithIndex((i, t) => { 
-          println("i " + i +  " start " + partition_index(i) +" end " + partition_index(i+1) + " memlength " + membership.slice(partition_index(i), partition_index(i+1)).length + " memtotallength " + membership.length ); 
+          // println("i " + i +  " start " + partition_index(i) +" end " + partition_index(i+1) + " memlength " + membership.slice(partition_index(i), partition_index(i+1)).length + " memtotallength " + membership.length ); 
         cuda_kmeans_slaves(t, dimClusters, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations)}) //map()  // mapPartitions(Iterator[T]) 
       val model_arr = model_RDD.collect()  // Array of Models
       
@@ -92,14 +92,14 @@ object Training{
           newClusters = (newClusters_part, newClusters).zipped.map(_+_)
         }else if (i % 4 == 1){
           val newClusterSize_part = model_arr(i).asInstanceOf[Array[Int]]
-          println("model " + i + " clustersize " + newClusterSize_part.length)
+          // println("model " + i + " clustersize " + newClusterSize_part.length)
           newClusterSize = (newClusterSize_part, newClusterSize).zipped.map(_+_) 
         }else if (i % 4 == 2){
           // JENNY need to think a way to pass it 
           membership = membership ++ model_arr(i).asInstanceOf[Array[Int]]
-          println("model " + i + " membership ")
-          membership.map(x=>print(" " + x + " "))
-          println()
+          // println("model " + i + " membership ")
+          // membership.map(x=>print(" " + x + " "))
+          // println()
         }else{
           delta += model_arr(i).asInstanceOf[Float]
        }
@@ -256,7 +256,7 @@ object Training{
         cuMemcpyDtoH(Pointer.to(d), deviceIntermediates, Sizeof.INT )
         delta = d(0).toFloat
         cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
-        println("membership size " + membership.length + "numObjs " + numObjs)
+        // println("membership size " + membership.length + "numObjs " + numObjs)
         for (i <- 0 until numObjs) {
           var index = membership(i)
           newClusterSize(index) += 1;
