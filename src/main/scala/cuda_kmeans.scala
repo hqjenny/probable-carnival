@@ -58,12 +58,15 @@ object Kmeans{
 
       // Read input file on master
       val timestamp0: Long = System.currentTimeMillis  
-      val objects = read_file_2D(input_file, numObjs, numCoords)
+      //val objects = read_file_2D(input_file, numObjs, numCoords)
       val timestamp1: Long = System.currentTimeMillis 
       
-      val ret = Training.cuda_kmeans_master(sc, objects, numCoords(0), numObjs(0), numClusters, threshold, iterations)
+      //val ret = Training.cuda_kmeans_master(sc, objects, numCoords(0), numObjs(0), numClusters, threshold, iterations)
+      val ret = Training.cuda_kmeans_master(sc, input_file, numClusters, threshold, iterations)
       val clusters = ret._1
       val membership = ret._2
+      numObjs(0) = ret._3
+      numCoords(0) = ret._4
       //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): Array[Float] = { 
       val timestamp2: Long = System.currentTimeMillis 
       write_file(output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
