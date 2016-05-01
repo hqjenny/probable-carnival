@@ -569,7 +569,8 @@ object Kmeans{
   }
 
   // objects and center arrays do not contain the indices.
-  def predict(objects:Array[Float], centers:Array[Float], numObjs: Int, numClusters: Int, numFeatures:Int, outFile: String) {
+  // Returns the membership array
+  def predict(objects:Array[Float], centers:Array[Float], numObjs: Int, numClusters: Int, numFeatures:Int, outFile: String): Array[Float] {
     assert(objects.length != 0)
     val membership = Array.ofDim[Int](numObjs)
     cuda_predict(objects, centers, numFeatures, numObjs, numClusters, membership)
@@ -582,6 +583,7 @@ object Kmeans{
       writer.write(i + " " + membership(i) + "\n" )
     }
     writer.close()
+    membership
   }
 
   private def toByteArray(inputStream: InputStream): Array[Byte] = {
