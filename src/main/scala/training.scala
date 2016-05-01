@@ -48,15 +48,11 @@ object Training{
 
     // It will be nice if it can run on transpose rdd but the membership info will be incorrect
     //val objects_RDD = sc.parallelize(dimObjects) // run on 1 partition. RDD[(Float,String)]
-    val objects_RDD = sc.parallelize(objects) // run on 1 partition. RDD[(Float,String)]
+    val objects_RDD = sc.parallelize(objects).coalesce(2) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
-
-    val context_RDD = objects_RDD.mapPartitions(iter => device_setup()).collect()
-    val context = context_RDD.map(_.asInstanceOf[jcuda.driver.CUcontext])
-    println("context " + context.length)
 
     println("partition_index:")
     partition_index.map(x=> {println(x)})
@@ -68,7 +64,7 @@ object Training{
       println("membership length "+membership.length + " numObjs " + numObjs)
       val model_RDD = objects_RDD.mapPartitionsWithIndex((i, t) => { 
           println("i " + i +  " start " + partition_index(i) +" end " + partition_index(i+1) + " memlength " + membership.slice(partition_index(i), partition_index(i+1)).length + " memtotallength " + membership.length ); 
-        cuda_kmeans_slaves(t, dimClusters, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations, context(i))}) 
+        cuda_kmeans_slaves(t, dimClusters, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations)}) //map()  // mapPartitions(Iterator[T]) 
       val model_arr = model_RDD.collect()  // Array of Models
       
          // Reset all the values
@@ -111,7 +107,6 @@ object Training{
         delta = delta / numObjs
         loop += 1
       } while (delta > threshold && loop < loop_iterations)
-      //} while (loop < loop_iterations)
 
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
@@ -130,7 +125,7 @@ object Training{
 
   // out: [numClusters][numCoords]
   // objects: [numObjs][numCoords]
-  def cuda_kmeans_slaves(t: Iterator[Array[Float]], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int, context:jcuda.driver.CUcontext) : Iterator[Any] = {
+  def cuda_kmeans_slaves(t: Iterator[Array[Float]], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
     println("Slave Run %d", membership.length)
     // JENNY: should change the objects to 2D array and pass 1 pointers but they won't be continous; later  
     val objects_arr = t.toArray
@@ -139,11 +134,11 @@ object Training{
  
     JCudaDriver.setExceptionsEnabled(true)
     val ptxFileName = SparkFiles.get("cuda_kmeans.ptx")
-    //cuInit(0)
-    //val device = new CUdevice()
-    //cuDeviceGet(device, 0)
-    //val context = new CUcontext()
-    //cuCtxCreate(context, 0, device)
+    cuInit(0)
+    val device = new CUdevice()
+    cuDeviceGet(device, 0)
+    val context = new CUcontext()
+    cuCtxCreate(context, 0, device)
     val module = new CUmodule()
     cuModuleLoad(module, ptxFileName)
     val function1 = new CUfunction()
@@ -282,41 +277,10 @@ object Training{
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
     cuMemFree(deviceIntermediates)
-
-    cuCtxDestroy(context)
     
     return (newClusters, newClusterSize, membership, delta).productIterator 
   }
 
 
-  def device_setup() : Iterator[Any] = {
-    val deviceCount = Array(0);
-    cuDeviceGetCount(deviceCount);
-    println("device count " + deviceCount(0))
-
-    JCudaDriver.setExceptionsEnabled(true)
-    val ptxFileName = SparkFiles.get("cuda_kmeans.ptx")
-    cuInit(0)
-    val device = new CUdevice()
-    cuDeviceGet(device, 0)
-    val context = new CUcontext()
-    cuCtxCreate(context, 0, device)
- 
-    val ret = new Tuple1(context)
-    return ret.productIterator
-    //return context.iterator
-    //val module = new CUmodule()
-    //cuModuleLoad(module, ptxFileName)
-    //val function1 = new CUfunction()
-    //cuModuleGetFunction(function1, module, "find_nearest_cluster")
-    //cuModuleGetFunction(function1, module, "_Z20find_nearest_clusteriiiPfS_PiS0_")
-    //val function2 = new CUfunction()
-    //cuModuleGetFunction(function2, module, "compute_delta")
-    //cuModuleGetFunction(function2, module, "_Z13compute_deltaPiii")
-
-
-  }
 
 }
-
-
