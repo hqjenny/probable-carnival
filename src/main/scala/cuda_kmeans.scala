@@ -548,6 +548,8 @@ object Kmeans{
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
+
+    cuCtxDestroy(context)
   }
 
   def predict(inputFile: String, clusterFile: String, outFile: String) {
