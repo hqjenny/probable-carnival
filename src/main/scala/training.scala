@@ -226,7 +226,7 @@ object Training{
     cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
     cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)
 
-    do {
+    //do {
         cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
 
         val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership), Pointer.to(deviceIntermediates))
@@ -270,7 +270,7 @@ object Training{
         }
         // Uncomment this to allow mulitple iterations on GPU 
         /* average the sum and replace old cluster centers with newClusters */
-        for (i <- 0 until numClusters) {
+        /*for (i <- 0 until numClusters) {
           for (j <- 0 until numCoords) {
             if (newClusterSize(i) > 0) {
               dimClusters(Kmeans.get_index(j, i, numClusters)) = newClusters(Kmeans.get_index(j, i, numClusters)) / newClusterSize(i)
@@ -282,7 +282,7 @@ object Training{
     
         // delta = delta / numObjs
         loop += 1
-      } while (delta > threshold && loop < 2)
+      } while (delta > threshold && loop < 2)*/
        
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
