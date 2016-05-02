@@ -559,7 +559,7 @@ object Kmeans{
     println("Num coords: " + numCoords(0))
     assert (clusterNumCoords(0) == numCoords(0))
 
-    val membership = predict(objects, centers, numObjs(0), numClusters(0), numCoords(0), outFile)
+    val membership = predict(objects, centers, numObjs(0), numClusters(0), numCoords(0))
 
     val outFileName = outFile + ".membership"
     val writer = new PrintWriter(new File(outFileName))
