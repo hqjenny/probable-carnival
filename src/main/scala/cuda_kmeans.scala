@@ -563,8 +563,8 @@ object Kmeans{
 
     val outFileName = outFile + ".membership"
     val writer = new PrintWriter(new File(outFileName))
-    printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs, outFileName)
-    for(i <- 0 until numObjs) {
+    printf("Writing membership of N=%d data objects to file \"%s\"\n", numObjs(0), outFileName)
+    for(i <- 0 until numObjs(0)) {
       //printf("%d %d\n", i, membership(i))
       writer.write(i + " " + membership(i) + "\n" )
     }
