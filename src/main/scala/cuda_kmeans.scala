@@ -37,14 +37,8 @@ object Kmeans{
 
     val m = args(0)
     if (m == "predict") {
-
       val Array( mode, input_file, cluster_file, output_file) = args
-      val timestamp0: Long = System.currentTimeMillis 
       predict(input_file, cluster_file, output_file)
-      val timestamp1: Long = System.currentTimeMillis 
-
-      val predict_time = (timestamp1 - timestamp0)
-      println("predict: " + predict_time + "ms")
 
     } else if (m == "par_train") {
       val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
@@ -565,15 +559,7 @@ object Kmeans{
     println("Num coords: " + numCoords(0))
     assert (clusterNumCoords(0) == numCoords(0))
 
-    predict(objects, centers, numObjs(0), numClusters(0), numCoords(0), outFile)
-  }
-
-  // objects and center arrays do not contain the indices.
-  // Returns the membership array
-  def predict(objects:Array[Float], centers:Array[Float], numObjs: Int, numClusters: Int, numFeatures:Int, outFile: String): Array[Int] = {
-    assert(objects.length != 0)
-    val membership = Array.ofDim[Int](numObjs)
-    cuda_predict(objects, centers, numFeatures, numObjs, numClusters, membership)
+    val membership = predict(objects, centers, numObjs(0), numClusters(0), numCoords(0), outFile)
 
     val outFileName = outFile + ".membership"
     val writer = new PrintWriter(new File(outFileName))
@@ -583,6 +569,18 @@ object Kmeans{
       writer.write(i + " " + membership(i) + "\n" )
     }
     writer.close()
+  }
+
+  // objects and center arrays do not contain the indices.
+  // Returns the membership array
+  def predict(objects:Array[Float], centers:Array[Float], numObjs: Int, numClusters: Int, numFeatures:Int): Array[Int] = {
+    assert(objects.length != 0)
+    val membership = Array.ofDim[Int](numObjs)
+    val timestamp0: Long = System.currentTimeMillis
+    cuda_predict(objects, centers, numFeatures, numObjs, numClusters, membership)
+    val timestamp1: Long = System.currentTimeMillis
+    val predict_time = (timestamp1 - timestamp0)
+    println("predict: " + predict_time + "ms")
     membership
   }
 
