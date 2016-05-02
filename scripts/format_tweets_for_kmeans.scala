@@ -23,7 +23,7 @@ object FormatTweetsForCUDA {
 
         val numFeatures = 1000
         val tf = new HashingTF(numFeatures)
-        val tweetInput = "hdfs://" + args(0)
+        val tweetInput = args(0)
 
         val tweets = sc.textFile(tweetInput)
         val tweetTable = sqlContext.read.json(tweetInput).cache()

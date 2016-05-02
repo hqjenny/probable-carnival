@@ -64,7 +64,7 @@ object Kmeans{
       numCoords(0) = ret._4
       //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): Array[Float] = { 
       val timestamp2: Long = System.currentTimeMillis 
-      write_file_hdfs(output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      write_file_hdfs(sc, output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
       val timestamp3: Long = System.currentTimeMillis 
 
       val read_file_time = (timestamp1 - timestamp0)
@@ -381,7 +381,7 @@ object Kmeans{
     return clusters
   }
 
-  def write_file_hdfs (filename: String, numClusters: Int, numObjs: Int, numCoords: Int, clusters: Array[Float], membership: Array[Int]) {
+  def write_file_hdfs (sc:SparkContext, filename: String, numClusters: Int, numObjs: Int, numCoords: Int, clusters: Array[Float], membership: Array[Int]) {
     var buffer = new StringBuilder
     for(i <- 0 until numClusters){
       buffer ++= i + " "
@@ -392,7 +392,7 @@ object Kmeans{
     }
     sc.parallelize(buffer.toString.split("\n")).saveAsTextFile(filename + ".model")
 
-    sc.parallelize(membership).zipWithIndex.map(case (c, i) => i + " " + c + "\n").saveAsTextFile(filename + ".membership")
+    sc.parallelize(membership).zipWithIndex.map{case (c, i) => i + " " + c + "\n"}.saveAsTextFile(filename + ".membership")
   }
 
   def write_file (filename: String, numClusters: Int, numObjs: Int, numCoords: Int, clusters: Array[Float], membership: Array[Int]): Int = {
