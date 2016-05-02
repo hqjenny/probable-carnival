@@ -38,6 +38,7 @@ object Kmeans{
     val m = args(0)
     if (m == "predict") {
       val Array( mode, input_file, cluster_file, output_file) = args
+      sc.addFile("cuda_kmeans.ptx")
       predict(input_file, cluster_file, output_file)
 
     } else if (m == "par_train") {
