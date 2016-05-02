@@ -280,7 +280,7 @@ object Training{
           newClusterSize(i) = 0
         }
     
-        delta = delta / numObjs
+        // delta = delta / numObjs
         loop += 1
       } while (delta > threshold && loop < 5)
        
