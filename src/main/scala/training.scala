@@ -282,7 +282,7 @@ object Training{
     
         // delta = delta / numObjs
         loop += 1
-      } while (delta > threshold && loop < 5)
+      } while (delta > threshold && loop < 2)
        
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
