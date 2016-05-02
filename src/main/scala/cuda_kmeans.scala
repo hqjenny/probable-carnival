@@ -265,20 +265,20 @@ object Kmeans{
     val numClusterBlocks = (numObjs + numThreadsPerClusterBlock - 1) / numThreadsPerClusterBlock;
 
     //#if BLOCK_SHARED_MEM_OPTIMIZATION
-    val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
+    // val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
     
-    val deviceNum = Array(-1)
-    JCuda.cudaGetDevice(deviceNum)
-    val deviceProp = new cudaDeviceProp()
-    JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
-    if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
-      println("WARNING: Your CUDA hardware has insufficient block shared memory.")
-      println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
-      println("See the README for details.")
-    }
+    // val deviceNum = Array(-1)
+    // JCuda.cudaGetDevice(deviceNum)
+    // val deviceProp = new cudaDeviceProp()
+    // JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
+    // if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
+    //   println("WARNING: Your CUDA hardware has insufficient block shared memory.")
+    //   println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
+    //   println("See the README for details.")
+    // }
 
     //#else
-    //const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
+    const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
     //#endif 
 
     val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
@@ -514,20 +514,20 @@ object Kmeans{
     val numClusterBlocks = (numObjs + numThreadsPerClusterBlock - 1) / numThreadsPerClusterBlock;
 
     //#if BLOCK_SHARED_MEM_OPTIMIZATION
-    val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
+    // val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR + numClusters * numCoords * Sizeof.FLOAT
     
-    val deviceNum = Array(-1)
-    JCuda.cudaGetDevice(deviceNum)
-    val deviceProp = new cudaDeviceProp()
-    JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
-    if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
-      println("WARNING: Your CUDA hardware has insufficient block shared memory.")
-      println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
-      println("See the README for details.")
-    }
+    // val deviceNum = Array(-1)
+    // JCuda.cudaGetDevice(deviceNum)
+    // val deviceProp = new cudaDeviceProp()
+    // JCuda.cudaGetDeviceProperties(deviceProp, deviceNum(0))
+    // if(clusterBlockSharedDataSize > deviceProp.sharedMemPerBlock) {
+    //   println("WARNING: Your CUDA hardware has insufficient block shared memory.")
+    //   println("You need to recompile with BLOCK_SHARED_MEM_OPTIMIZATION=0. ")
+    //   println("See the README for details.")
+    // }
 
     //#else
-    //const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
+    const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
     //#endif 
 
     val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
