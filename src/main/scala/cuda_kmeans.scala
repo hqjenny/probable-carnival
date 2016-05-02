@@ -278,7 +278,7 @@ object Kmeans{
     // }
 
     //#else
-    const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
+    val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR;
     //#endif 
 
     val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
@@ -527,7 +527,7 @@ object Kmeans{
     // }
 
     //#else
-    const unsigned int clusterBlockSharedDataSize =numThreadsPerClusterBlock * sizeof(unsigned char);
+    val clusterBlockSharedDataSize = numThreadsPerClusterBlock * Sizeof.CHAR;
     //#endif 
 
     val numReductionThreads = nextPowerOfTwo(numClusterBlocks)
