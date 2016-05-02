@@ -286,11 +286,11 @@ object Training{
        
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
-    println("Within cuda_kmeans jobs")
+    // println("Within cuda_kmeans jobs")
 
     //println("\tloop_iterations: " + loop )
-    println("\t\tdelta: " + delta )
-    println("\t\ttrain: " + train_time + "ms" )
+    // println("\t\tdelta: " + delta )
+    // println("\t\ttrain: " + train_time + "ms" )
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
