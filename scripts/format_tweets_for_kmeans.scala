@@ -30,14 +30,10 @@ object FormatTweetsForCUDA {
         tweetTable.registerTempTable("tweetTable")
         val texts = sqlContext.sql("SELECT text from tweetTable").map(_.toString)
         val vectorsRDD = texts.map(featurize(tf)).zipWithIndex.map(writeFormat)
-        val vectors = vectorsRDD.collect()
+        //val vectors = vectorsRDD.collect()
 
         val file = args(1)
-        val writer = new BufferedWriter(new OutputStreamWriter(new FileOutputStream(file)))
-        for (x <- vectors) {
-          writer.write(x + "\n")
-        }
-        writer.close()
+        vectorsRDD.saveAsTextFile(file)
     }
 
     def featurize(tf: HashingTF)( s: String): Vector = {
