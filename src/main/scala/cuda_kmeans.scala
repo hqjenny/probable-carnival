@@ -565,15 +565,15 @@ object Kmeans{
     timestamp1 = System.currentTimeMillis
     println("kernel runtime: " + (timestamp1 - timestamp0));
 
-    timestamp0 = System.currentTimeMillis
-    JCuda.cudaDeviceSynchronize()
-    timestamp1 = System.currentTimeMillis
-    println("cuda device synchronize time: " + (timestamp1 - timestamp0));
+    // timestamp0 = System.currentTimeMillis
+    // JCuda.cudaDeviceSynchronize()
+    // timestamp1 = System.currentTimeMillis
+    // println("cuda device synchronize time: " + (timestamp1 - timestamp0));
 
-    var e = JCuda.cudaGetLastError()
-    if(e !=  cudaError.cudaSuccess) {
-      printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
-    }
+    // var e = JCuda.cudaGetLastError()
+    // if(e !=  cudaError.cudaSuccess) {
+    //   printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
+    // }
 
     timestamp0 = System.currentTimeMillis
     cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
