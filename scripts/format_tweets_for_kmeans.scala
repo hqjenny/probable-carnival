@@ -25,8 +25,7 @@ object FormatTweetsForCUDA {
         val tf = new HashingTF(numFeatures)
         val tweetInput = args(0)
 
-        val tweets = sc.textFile(tweetInput)
-        val tweetTable = tweets.toDF()
+        val tweetTable = sqlContext.read.json(tweetInput).cache()
         tweetTable.registerTempTable("tweetTable")
         val texts = sqlContext.sql("SELECT text from tweetTable").map(_.toString)
         val vectorsRDD = texts.map(featurize(tf)).zipWithIndex.map(writeFormat)
