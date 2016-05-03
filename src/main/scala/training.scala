@@ -26,7 +26,7 @@ object Training{
     floatRDD.cache()
 
     val numObjs = lines.count().toInt
-    val numCoords = lines.take(1).trim.split(' ').length - 1
+    val numCoords = lines.take(1)(0).trim.split(' ').length - 1
 
     val clusterLines = floatRDD.take(numClusters*numCoords)
     val startObjects  = clusterLines
@@ -65,10 +65,12 @@ object Training{
     //val objects_RDD = sc.parallelize(objects) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     //val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
-    val partition_size = floatRDD.mapPartitions(iter => {
-        assert(iter.size % numCoords == 0)
-        Array(iter.size/numCoords).iterator
-      }, true).collect()
+    def getSize(iter: Iterator[Float]):Iterator[Int] = {
+      assert(iter.size % numCoords == 0)
+      Array(iter.size/numCoords).iterator
+    } 
+
+    val partition_size = floatRDD.mapPartitions(getSize, true).collect()
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
 
