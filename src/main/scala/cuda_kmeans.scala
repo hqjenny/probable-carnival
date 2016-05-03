@@ -38,7 +38,7 @@ object Kmeans{
     val m = args(0)
     if (m == "predict") {
       val Array( mode, input_file, cluster_file, output_file) = args
-      sc.addFile("cuda_kmeans.ptx")
+      sc.addFile("/root/probable-carnival/cuda_kmeans.ptx")
       predict(input_file, cluster_file, output_file)
 
     } else if (m == "par_train") {
@@ -49,7 +49,7 @@ object Kmeans{
       val threshold = threshold_str.toFloat
       val iterations = iterations_str.toInt
       // Add the file to the slave 
-      sc.addFile("cuda_kmeans.ptx")
+      sc.addFile("/root/probable-carnival/cuda_kmeans.ptx")
 
       // Read input file on master
       val timestamp0: Long = System.currentTimeMillis  
@@ -85,7 +85,7 @@ object Kmeans{
       val iterations = iterations_str.toInt
 
       // Add the file to the slave 
-      sc.addFile("cuda_kmeans.ptx")
+      sc.addFile("/root/probable-carnival/cuda_kmeans.ptx")
 
       // Read input file on master
       val timestamp0: Long = System.currentTimeMillis  
