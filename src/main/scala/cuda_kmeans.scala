@@ -462,7 +462,7 @@ object Kmeans{
     //val ptxFileName = preparePtxFile("cuda_kmeans.cu")
     val ptxFileName = SparkFiles.get("cuda_kmeans.ptx") 
     var timestamp1: Long = System.currentTimeMillis
-    println("Getting the ptx file: " + timestamp1 - timestamp0);
+    println("Getting the ptx file: " + (timestamp1 - timestamp0));
 
     timestamp0 = System.currentTimeMillis
     cuInit(0)
@@ -545,7 +545,7 @@ object Kmeans{
     val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership))
 
     timestamp1 = System.currentTimeMillis
-    println("CUDA initialization time: " + timestamp1 - timestamp0);
+    println("CUDA initialization time: " + (timestamp1 - timestamp0));
 
     timestamp0 = System.currentTimeMillis
     // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
@@ -556,7 +556,7 @@ object Kmeans{
     timestamp0 = System.currentTimeMillis
     JCuda.cudaDeviceSynchronize()
     timestamp1 = System.currentTimeMillis
-    println("cuda device synchronize time: " + timestamp1 - timestamp0);
+    println("cuda device synchronize time: " + (timestamp1 - timestamp0));
 
     var e = JCuda.cudaGetLastError()
     if(e !=  cudaError.cudaSuccess) {
@@ -570,7 +570,7 @@ object Kmeans{
     cuMemFree(deviceMembership)
     cuCtxDestroy(context)
     timestamp1 = System.currentTimeMillis
-    println("cuda dealloc time: " + timestamp1 - timestamp0);
+    println("cuda dealloc time: " + (timestamp1 - timestamp0));
   }
 
   def predict(inputFile: String, clusterFile: String, outFile: String) {
