@@ -74,9 +74,9 @@ object Training{
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
 
-    // println("partition_index:")
-    // partition_index.map(x=> {println(x)})
-    // println()
+    println("partition_index:")
+    partition_index.map(x=> {println(x)})
+    println()
     
     val timestamp1: Long = System.currentTimeMillis 
     do {
