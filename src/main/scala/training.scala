@@ -65,12 +65,14 @@ object Training{
     //val objects_RDD = sc.parallelize(objects) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     //val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
-    def getSize(iter: Iterator[Float]):Iterator[Int] = {
+    def getSize(numCoords: Int)(iter: Iterator[Float]):Iterator[Int] = {
       assert(iter.size % numCoords == 0)
+      println("iter size: " + iter.size)
+      println("num coords: " + numCoords)
       Array(iter.size/numCoords).iterator
     } 
 
-    val partition_size = floatRDD.mapPartitions(getSize, true).collect()
+    val partition_size = floatRDD.mapPartitions(getSize(numCoords), true).collect()
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
 
