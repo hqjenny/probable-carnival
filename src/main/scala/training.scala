@@ -20,7 +20,7 @@ object Training{
 
   //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int]) = {
   def cuda_kmeans_master(sc: SparkContext, filename: String, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int], Int, Int) = {
-    val lines = sc.textFile(filename)
+    val lines = sc.textFile(filename, 32)
     val floatRDD = lines.map(x => x.trim.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
     floatRDD.cache()
 
