@@ -551,7 +551,7 @@ object Kmeans{
     // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
     cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters1, null)
     timestamp1 = System.currentTimeMillis
-    println("kernel runtime: " + timestamp1 - timestamp0);
+    println("kernel runtime: " + (timestamp1 - timestamp0));
 
     timestamp0 = System.currentTimeMillis
     JCuda.cudaDeviceSynchronize()
