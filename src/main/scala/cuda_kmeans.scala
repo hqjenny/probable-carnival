@@ -474,7 +474,10 @@ object Kmeans{
     cuModuleLoad(module, ptxFileName)
     val function1 = new CUfunction()
     cuModuleGetFunction(function1, module, "_Z7predictiiiPfS_Pi")
+    timestamp1 = System.currentTimeMillis
+    println("CU device create: " + (timestamp1 - timestamp0));
 
+    timestamp0 = System.currentTimeMillis
     var i, j, index, loop = 0 
     val newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
     var delta = 0.0f
@@ -489,7 +492,10 @@ object Kmeans{
     val deviceObjects = new CUdeviceptr()
     val deviceClusters = new CUdeviceptr()
     val deviceMembership = new CUdeviceptr()
+    timestamp1 = System.currentTimeMillis
+    println("create arrays and device ptr: " + (timestamp1 - timestamp0));
 
+    timestamp0 = System.currentTimeMillis
     /* initialize */
     for (i <- 0 until numCoords) {
       for (j <- 0 until numObjs) {
@@ -506,6 +512,10 @@ object Kmeans{
     for (i <- 0 until numObjs) {
       membership(i) = -1
     }
+    timestamp1 = System.currentTimeMillis
+    println("initialize dim objects and clusters " + (timestamp1 - timestamp0));
+
+    timestamp0 = System.currentTimeMillis
     //  To support reduction, numThreadsPerClusterBlock *must* be a power of
     //  two, and it *must* be no larger than the number of bits that will
     //  fit into an unsigned char, the type used to keep track of membership
@@ -536,16 +546,18 @@ object Kmeans{
     cuMemAlloc(deviceObjects, numCoords * numObjs * Sizeof.FLOAT)
     cuMemAlloc(deviceClusters, numCoords * numClusters * Sizeof.FLOAT)
     cuMemAlloc(deviceMembership, numObjs * Sizeof.INT)
+    timestamp1 = System.currentTimeMillis
+    println("CUDA memalloc time: " + (timestamp1 - timestamp0));
 
+    timestamp0 = System.currentTimeMillis
     cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
     cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)
-
     cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
 
     val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership))
 
     timestamp1 = System.currentTimeMillis
-    println("CUDA initialization time: " + (timestamp1 - timestamp0));
+    println("CUDA copy time: " + (timestamp1 - timestamp0));
 
     timestamp0 = System.currentTimeMillis
     // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
