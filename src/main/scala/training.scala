@@ -66,10 +66,11 @@ object Training{
     // Get the number of objects in each partition 
     //val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
     def getSize(numCoords: Int)(iter: Iterator[Float]):Iterator[Int] = {
-      assert(iter.size % numCoords == 0)
-      println("iter size: " + iter.size)
+      val itersize = iter.size
+      assert(itersize % numCoords == 0)
+      println("iter size: " + itersize)
       println("num coords: " + numCoords)
-      Array(iter.size/numCoords).iterator
+      Array(itersize/numCoords).iterator
     } 
 
     val partition_size = floatRDD.mapPartitions(getSize(numCoords), true).collect()
