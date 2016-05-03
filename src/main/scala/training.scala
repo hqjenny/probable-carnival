@@ -9,6 +9,7 @@ import org.apache.spark.sql._
 import org.apache.spark.sql.SQLContext._
 //remove if not needed
 import scala.collection.JavaConversions._
+import scala.collection.mutable.ArrayBuffer
 
 import jcuda.driver.JCudaDriver._
 import java.io._
@@ -153,7 +154,9 @@ object Training{
     //val objects = objects_arr.reduce(_++_)
     val objects_arr = t.toArray
     val numObjs = objects_arr.length
-    val objects = objects_arr.reduce(_++_)
+    val objectsBuffer = ArrayBuffer[Float]()
+    objects_arr.foreach(o => objectsBuffer ++= o)
+    val objects = objectsBuffer.toArray
     
     val timestamp2: Long = System.currentTimeMillis
     val dimObjects = Array.ofDim[Float](numCoords * numObjs)
