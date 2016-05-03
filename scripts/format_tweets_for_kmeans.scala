@@ -9,7 +9,6 @@ object FormatTweetsForCUDA {
     import org.apache.spark.sql.SQLContext
     import org.apache.spark.sql._
     import org.apache.spark.sql.SQLContext._
-    import sqlContext.implicits._
     def main(args: Array[String]) {
         val conf = new SparkConf().setAppName("FormatTweetsForCUDA")
         val sc = new SparkContext(conf)
