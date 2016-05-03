@@ -22,6 +22,7 @@ object Kmeans{
   def main(args: Array[String]) {
 
     val conf = new SparkConf().setAppName("dataframe kmeans gpu")
+    
     val sc = new SparkContext(conf)
     val sqlContext= new SQLContext(sc)
 

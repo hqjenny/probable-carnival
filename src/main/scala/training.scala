@@ -21,7 +21,7 @@ object Training{
   //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int]) = {
   def cuda_kmeans_master(sc: SparkContext, filename: String, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int], Int, Int) = {
 
-    val lines = sc.textFile(filename) 
+    val lines = sc.textFile(filename, 32) 
     lines.cache()
     val numObjs = lines.count().toInt
     val clusterLines = lines.take(numClusters)
