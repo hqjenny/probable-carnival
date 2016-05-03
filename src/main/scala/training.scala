@@ -20,11 +20,12 @@ object Training{
 
   //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int]) = {
   def cuda_kmeans_master(sc: SparkContext, filename: String, numClusters: Int, threshold: Float, loop_iterations: Int): (Array[Float], Array[Int], Int, Int) = {
+    val lines = sc.textFile(filename)
+    val floatRDD = lines.map(x => x.trim.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
+    floatRDD.cache()
 
-    val lines = sc.textFile(filename) 
-    lines.cache()
-    val numObjs = lines.count().toInt
-    val clusterLines = lines.take(numClusters)
+    val numObjs = floatRDD.count().toInt
+    val clusterLines = floatRDD.take(numClusters)
     val startObjects  = clusterLines.map(x => x.trim).map(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
     val numCoords = startObjects(0).length
     println("numObjs " + numObjs + " numCoords " + numCoords)
@@ -61,7 +62,7 @@ object Training{
     //val objects_RDD = sc.parallelize(objects) // run on 1 partition. RDD[(Float,String)]
     // Get the number of objects in each partition 
     //val partition_size =objects_RDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
-    val partition_size =lines.mapPartitions(iter => Array(iter.size).iterator, true).collect()
+    val partition_size = floatRDD.mapPartitions(iter => Array(iter.size).iterator, true).collect()
     // Get a accumulative sum
     val partition_index = partition_size.scanLeft(0)(_+_)
 
@@ -74,7 +75,7 @@ object Training{
       println("loop_iterations: " + loop )
       // println("membership length "+membership.length + " numObjs " + numObjs)
 
-      val model_RDD = lines.mapPartitionsWithIndex((i, t) => { 
+      val model_RDD = floatRDD.mapPartitionsWithIndex((i, t) => { 
       //val model_RDD = objects_RDD.mapPartitionsWithIndex((i, t) => { 
           // println("i " + i +  " start " + partition_index(i) +" end " + partition_index(i+1) + " memlength " + membership.slice(partition_index(i), partition_index(i+1)).length + " memtotallength " + membership.length ); 
         cuda_kmeans_slaves(t, dimClusters, numCoords, numClusters, threshold, membership.slice(partition_index(i), partition_index(i+1)), loop_iterations)}) //map()  // mapPartitions(Iterator[T]) 
@@ -138,19 +139,22 @@ object Training{
 
   // out: [numClusters][numCoords]
   // objects: [numObjs][numCoords]
-  def cuda_kmeans_slaves(t: Iterator[String], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
+  def cuda_kmeans_slaves(t: Iterator[Array[Float]], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
     // JENNY: should change the objects to 2D array and pass 1 pointers but they won't be continous; later  
     // Arrays of strings 
 
     val timestamp1: Long = System.currentTimeMillis
-    val objects_arr = t.toArray
-    val numObjs = objects_arr.length
+    // val objects_arr = t.toArray
+    // val numObjs = objects_arr.length
     //val objects = objects_arr.flatMap(x => x.trim).map(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
-    val objects = objects_arr.flatMap(x => x.trim.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
+    // val objects = objects_arr.flatMap(x => x.trim.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
     //val objects = t.toArray
     //val numObjs = objects_arr.length
     //val objects = objects_arr.reduce(_++_)
-
+    val objects_arr = t.toArray
+    val numObjs = objects_arr.length
+    val objects = objects_arr.reduce(_++_)
+    
     val timestamp2: Long = System.currentTimeMillis
     val dimObjects = Array.ofDim[Float](numCoords * numObjs)
     /* initialize */
