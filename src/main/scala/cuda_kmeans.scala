@@ -457,14 +457,14 @@ object Kmeans{
 
   def cuda_predict (objects: Array[Float], clusters: Array[Float], numCoords: Int, numObjs: Int, numClusters: Int, membership: Array[Int]) {
     JCudaDriver.setExceptionsEnabled(true)
-    val timestamp0: Long = System.currentTimeMillis
+    var timestamp0: Long = System.currentTimeMillis
 
     //val ptxFileName = preparePtxFile("cuda_kmeans.cu")
     val ptxFileName = SparkFiles.get("cuda_kmeans.ptx") 
-    val timestamp1: Long = System.currentTimeMillis
+    var timestamp1: Long = System.currentTimeMillis
     println("Getting the ptx file: " + timestamp1 - timestamp0);
 
-    val timestamp0: Long = System.currentTimeMillis
+    timestamp0 = System.currentTimeMillis
     cuInit(0)
     val device = new CUdevice()
     cuDeviceGet(device, 0)
@@ -544,18 +544,18 @@ object Kmeans{
 
     val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership))
 
-    val timestamp1: Long = System.currentTimeMillis
+    timestamp1 = System.currentTimeMillis
     println("CUDA initialization time: " + timestamp1 - timestamp0);
 
-    val timestamp0: Long = System.currentTimeMillis
+    timestamp0 = System.currentTimeMillis
     // <<< numClusterBlocks, numThreadsPerClusterBlock, clusterBlockSharedDataSize >>>
     cuLaunchKernel(function1, numClusterBlocks, 1, 1, numThreadsPerClusterBlock, 1, 1, clusterBlockSharedDataSize, null, kernelParameters1, null)
-    val timestamp1: Long = System.currentTimeMillis
+    timestamp1 = System.currentTimeMillis
     println("kernel runtime: " + timestamp1 - timestamp0);
 
-    val timestamp0: Long = System.currentTimeMillis
+    timestamp0 = System.currentTimeMillis
     JCuda.cudaDeviceSynchronize()
-    val timestamp1: Long = System.currentTimeMillis
+    timestamp1 = System.currentTimeMillis
     println("cuda device synchronize time: " + timestamp1 - timestamp0);
 
     var e = JCuda.cudaGetLastError()
@@ -563,13 +563,13 @@ object Kmeans{
       printf("CUDA Error %d: %s\n", e, JCuda.cudaGetErrorString(e))
     }
 
-    val timestamp0: Long = System.currentTimeMillis
+    timestamp0 = System.currentTimeMillis
     cuMemcpyDtoH(Pointer.to(membership), deviceMembership, numObjs * Sizeof.INT)
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
     cuCtxDestroy(context)
-    val timestamp1: Long = System.currentTimeMillis
+    timestamp1 = System.currentTimeMillis
     println("cuda dealloc time: " + timestamp1 - timestamp0);
   }
 
