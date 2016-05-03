@@ -26,7 +26,7 @@ object Training{
 
     val numObjs = floatRDD.count().toInt
     val clusterLines = floatRDD.take(numClusters)
-    val startObjects  = clusterLines.map(x => x.trim).map(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
+    val startObjects  = clusterLines
     val numCoords = startObjects(0).length
     println("numObjs " + numObjs + " numCoords " + numCoords)
 
