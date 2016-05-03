@@ -139,9 +139,10 @@ object Training{
   // out: [numClusters][numCoords]
   // objects: [numObjs][numCoords]
   def cuda_kmeans_slaves(t: Iterator[String], dimClusters: Array[Float], numCoords: Int, numClusters: Int, threshold: Float, membership: Array[Int], loop_iterations: Int):Iterator[Any] = {
-    println("Slave Run %d", membership.length)
     // JENNY: should change the objects to 2D array and pass 1 pointers but they won't be continous; later  
     // Arrays of strings 
+
+    val timestamp1: Long = System.currentTimeMillis
     val objects_arr = t.toArray
     val numObjs = objects_arr.length
     //val objects = objects_arr.flatMap(x => x.trim).map(x => x.split(' ').slice(1, x.length).map(x => x.trim.toFloat))
@@ -149,7 +150,17 @@ object Training{
     //val objects = t.toArray
     //val numObjs = objects_arr.length
     //val objects = objects_arr.reduce(_++_)
- 
+
+    val timestamp2: Long = System.currentTimeMillis
+    val dimObjects = Array.ofDim[Float](numCoords * numObjs)
+    /* initialize */
+    for (i <- 0 until numCoords) {
+      for (j <- 0 until numObjs) {
+        dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
+      }
+    }
+
+    val timestamp3: Long = System.currentTimeMillis
     JCudaDriver.setExceptionsEnabled(true)
     val ptxFileName = SparkFiles.get("cuda_kmeans.ptx")
     cuInit(0)
@@ -170,7 +181,6 @@ object Training{
     val newClusterSize = Array.fill(numClusters){0} // number of objs assigned in each cluster
     var delta = 0.0f
     // [numCoords][numObjs] 
-    val dimObjects = Array.ofDim[Float](numCoords * numObjs)
     // [numClusters][numCoords] 
     //val clusters= Array.ofDim[Float](numClusters * numCoords)
     // [numCoords][numClusters]
@@ -181,13 +191,6 @@ object Training{
     val deviceClusters = new CUdeviceptr()
     val deviceMembership = new CUdeviceptr()
     val deviceIntermediates = new CUdeviceptr()
-
-    /* initialize */
-    for (i <- 0 until numCoords) {
-      for (j <- 0 until numObjs) {
-        dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
-      }
-    }
 
     //  To support reduction, numThreadsPerClusterBlock *must* be a power of
     //  two, and it *must* be no larger than the number of bits that will
@@ -222,11 +225,15 @@ object Training{
     cuMemAlloc(deviceIntermediates, numReductionThreads * Sizeof.INT) // unsigned data type
 
 
-    val timestamp1: Long = System.currentTimeMillis 
     cuMemcpyHtoD(deviceObjects, Pointer.to(dimObjects), numObjs * numCoords * Sizeof.FLOAT)
     cuMemcpyHtoD(deviceMembership, Pointer.to(membership), numObjs * Sizeof.INT)
 
+    val timestamp4: Long = System.currentTimeMillis
+
+
     //do {
+
+    val timestamp5: Long = System.currentTimeMillis 
         cuMemcpyHtoD(deviceClusters, Pointer.to(dimClusters), numClusters * numCoords * Sizeof.FLOAT)
 
         val kernelParameters1 = Pointer.to(Pointer.to(Array(numCoords)), Pointer.to(Array(numObjs)), Pointer.to(Array(numClusters)),  Pointer.to(deviceObjects), Pointer.to(deviceClusters), Pointer.to(deviceMembership), Pointer.to(deviceIntermediates))
@@ -280,17 +287,24 @@ object Training{
           newClusterSize(i) = 0
         }
     
-        // delta = delta / numObjs
+        delta = delta / numObjs
         loop += 1
-      } while (delta > threshold && loop < 2)*/
-       
-    val timestamp2: Long = System.currentTimeMillis 
-    val train_time  = (timestamp2 - timestamp1)
-    // println("Within cuda_kmeans jobs")
+      } while (delta > threshold && loop < loop_iterations)
+      */ 
+    val timestamp6: Long = System.currentTimeMillis 
 
+    val datatime = timestamp2 - timestamp1
+    val inversetime = timestamp3 - timestamp2
+    val copytime = timestamp4 - timestamp3
+    val train_time  = (timestamp6 - timestamp5)
+
+    println("\tWithin cuda_kmeans jobs")
+    println("\t\tData conversion time" + datatime + "ms")
+    println("\t\tData inverse time" + inversetime + "ms")
+    println("\t\tCopying to CUDA time" + copytime + "ms")
+    println("\t\tTraining time: " + train_time + "ms" )
     //println("\tloop_iterations: " + loop )
-    // println("\t\tdelta: " + delta )
-    // println("\t\ttrain: " + train_time + "ms" )
+    println("\t\tdelta: " + delta )
     cuMemFree(deviceObjects)
     cuMemFree(deviceClusters)
     cuMemFree(deviceMembership)
