@@ -9,6 +9,7 @@ object FormatTweetsForCUDA {
     import org.apache.spark.sql.SQLContext
     import org.apache.spark.sql._
     import org.apache.spark.sql.SQLContext._
+    import sqlContext.implicits._
     def main(args: Array[String]) {
         val conf = new SparkConf().setAppName("FormatTweetsForCUDA")
         val sc = new SparkContext(conf)
@@ -26,7 +27,7 @@ object FormatTweetsForCUDA {
         val tweetInput = args(0)
 
         val tweets = sc.textFile(tweetInput)
-        val tweetTable = sqlContext.read.json(tweetInput).cache()
+        val tweetTable = tweets.toDF()
         tweetTable.registerTempTable("tweetTable")
         val texts = sqlContext.sql("SELECT text from tweetTable").map(_.toString)
         val vectorsRDD = texts.map(featurize(tf)).zipWithIndex.map(writeFormat)
