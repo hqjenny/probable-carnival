@@ -159,13 +159,14 @@ object Training{
     val objects = objectsBuffer.toArray
     
     val timestamp2: Long = System.currentTimeMillis
-    val dimObjects = Array.ofDim[Float](numCoords * numObjs)
-    /* initialize */
-    for (i <- 0 until numCoords) {
-      for (j <- 0 until numObjs) {
-        dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
-      }
-    }
+    val dimObjects = objects;
+    // val dimObjects = Array.ofDim[Float](numCoords * numObjs)
+    // /* initialize */
+    // for (i <- 0 until numCoords) {
+    //   for (j <- 0 until numObjs) {
+    //     dimObjects(Kmeans.get_index(i, j, numObjs)) = objects(Kmeans.get_index(j, i, numCoords)) 
+    //   }
+    // }
 
     val timestamp3: Long = System.currentTimeMillis
     JCudaDriver.setExceptionsEnabled(true)
@@ -279,7 +280,7 @@ object Training{
             //printf("newCluster %d idx %d", newClusters.length, Kmeans.get_index(j, index, numClusters))
             //printf("objects %d idx %d\n", objects.length, Kmeans.get_index(j, index, numObjs))
             //newClusters(Kmeans.get_index(j, index, numClusters)) += objects(Kmeans.get_index(i, j, numCoords))
-            newClusters(Kmeans.get_index(j, index, numClusters)) += dimObjects(Kmeans.get_index(j, i, numObjs))
+            newClusters(Kmeans.get_index(j, index, numClusters)) += dimObjects(Kmeans.get_index(i, j, numCoords))
           }
         }
         // Uncomment this to allow mulitple iterations on GPU 

@@ -73,8 +73,11 @@ float euclid_dist_2(int    numCoords,
     float ans=0.0;
 
     for (i = 0; i < numCoords; i++) {
-        ans += (objects[numObjs * i + objectId] - clusters[numClusters * i + clusterId]) *
-               (objects[numObjs * i + objectId] - clusters[numClusters * i + clusterId]);
+        // ans += (objects[numObjs * i + objectId] - clusters[numClusters * i + clusterId]) *
+        //        (objects[numObjs * i + objectId] - clusters[numClusters * i + clusterId]);
+
+        ans += (objects[numCoords * objectId + i] - clusters[numClusters * i + clusterId]) * 
+                (objects[numCoords * objectId + i] - clusters[numClusters * i + clusterId]);
     }
 
     return(ans);
