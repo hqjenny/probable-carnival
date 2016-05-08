@@ -26,9 +26,20 @@ object Training{
     floatRDD.cache()
 
     val numObjs = floatRDD.count().toInt
-    val clusterLines = floatRDD.take(numClusters)
+    var numTake = 0
+    if (numObjs < numClusters){
+      numTake = numObjs
+    }else {
+      numTake = numClusters
+    }
+    var clusterLines = floatRDD.take(numTake)
+
+    val numCoords = clusterLines(0).length
+    if (numTake < numClusters ) {
+      clusterLines = clusterLines ++ Array.fill(numClusters - numTake){Array.fill(numCoords){0.0f}}
+    }
     val startObjects  = clusterLines
-    val numCoords = startObjects(0).length
+    //val numCoords = startObjects(0).length
     println("numObjs " + numObjs + " numCoords " + numCoords)
 
     var i, j, index, loop = 0 
@@ -121,7 +132,8 @@ object Training{
 
         delta = delta / numObjs
         loop += 1
-      } while (delta > threshold && loop < loop_iterations)
+      //} while (delta > threshold && loop < loop_iterations)
+      } while (loop < loop_iterations)
 
     val timestamp2: Long = System.currentTimeMillis 
     val train_time  = (timestamp2 - timestamp1)
