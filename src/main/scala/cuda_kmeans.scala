@@ -75,6 +75,41 @@ object Kmeans{
       println("read_file: " + read_file_time + "ms")
       println("cuda_kmeans_time: " + cuda_kmeans_time + "ms")
       println("write_file_time: " + write_file_time + "ms") 
+
+    } else if (m == "par_train_cpu") {
+      val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
+      val numObjs = Array(0) 
+      val numCoords = Array(0) 
+      val numClusters = numClusters_str.toInt
+      val threshold = threshold_str.toFloat
+      val iterations = iterations_str.toInt
+      // Add the file to the slave 
+      sc.addFile("/root/probable-carnival/cuda_kmeans.ptx")
+
+      // Read input file on master
+      val timestamp0: Long = System.currentTimeMillis  
+      //val objects = read_file_2D(input_file, numObjs, numCoords)
+      val timestamp1: Long = System.currentTimeMillis 
+      
+      //val ret = Training.cuda_kmeans_master(sc, objects, numCoords(0), numObjs(0), numClusters, threshold, iterations)
+      val ret = CPU_Training.cuda_kmeans_master(sc, input_file, numClusters, threshold, iterations)
+      val clusters = ret._1
+      val membership = ret._2
+      numObjs(0) = ret._3
+      numCoords(0) = ret._4
+      //def cuda_kmeans_master(sc: SparkContext, objects: Array[Array[Float]], numCoords: Int, numObjs: Int, numClusters: Int, threshold: Float, loop_iterations: Int): Array[Float] = { 
+      val timestamp2: Long = System.currentTimeMillis 
+      write_file_hdfs(sc, output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      //write_file(output_file, numClusters, numObjs(0), numCoords(0), clusters, membership)
+      val timestamp3: Long = System.currentTimeMillis 
+
+      val read_file_time = (timestamp1 - timestamp0)
+      val cuda_kmeans_time  = (timestamp2 - timestamp1)
+      val write_file_time  = (timestamp3 - timestamp2)
+
+      println("read_file: " + read_file_time + "ms")
+      println("cuda_kmeans_time: " + cuda_kmeans_time + "ms")
+      println("write_file_time: " + write_file_time + "ms") 
     } else {
       val Array( mode, input_file, output_file, numClusters_str, threshold_str, iterations_str) = args
 
